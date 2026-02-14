@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combo Cleaner</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --primary: #0f172a;
+            --accent: #3b82f6;
+            --text: #334155;
+            --muted: #94a3b8;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--primary); }
+        p { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.1s;
+        }
+
+        .btn:active { transform: scale(0.98); }
+        .btn-secondary { background: #e2e8f0; color: var(--text); margin-top: 10px; }
+
+        #fileInput { display: none; }
+
+        .progress-bar {
+            height: 4px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        #preview {
+            display: none;
+            text-align: left;
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            margin: 15px 0;
+            max-height: 120px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .status { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>Combo Cleaner</h1>
+    <p>Upload a .txt file to format and clean</p>
+
+    <button class="btn" onclick="document.getElementById('fileInput').click()" id="uploadBtn">Select File</button>
+    <input type="file" id="fileInput" accept=".txt">
+
+    <div class="progress-bar" id="progBar"><div class="progress-fill" id="progFill"></div></div>
+    <div id="status" class="status"></div>
+    
+    <div id="preview"></div>
+
+    <div id="actions" style="display:none">
+        <button class="btn" id="dlBtn">Download Cleaned File</button>
+        <button class="btn btn-secondary" id="showBtn">View Full List</button>
+    </div>
+    <p>© 2KZ<p>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const progBar = document.getElementById('progBar');
+    const progFill = document.getElementById('progFill');
+    const status = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    const actions = document.getElementById('actions');
+    const dlBtn = document.getElementById('dlBtn');
+    const showBtn = document.getElementById('showBtn');
+
+    let cleanedData = "";
+    let fileName = "";
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        fileName = `[cleaned] ${file.name}`;
+        const reader = new FileReader();
+        
+        progBar.style.display = 'block';
+        status.innerText = "Processing...";
+        actions.style.display = 'none';
+        preview.style.display = 'none';
+
+        reader.onload = async (event) => {
+            const lines = event.target.result.split(/\r?\n/);
+            let valid = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                let raw = lines[i].trim();
+                let clean = raw.replace(/^https?:\/\//i, '');
+                let colons = (clean.match(/:/g) || []).length;
+
+                if ((colons === 1 || colons === 2) && clean.split(':').every(p => p.length > 0)) {
+                    valid.push(raw);
+                }
+
+                if (i % 1000 === 0) {
+                    progFill.style.width = Math.round((i / lines.length) * 100) + '%';
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            cleanedData = valid.join('\n');
+            status.innerText = `Success: ${valid.length} lines found.`;
+            preview.innerText = valid.slice(0, 8).join('\n') || "No valid data found.";
+            preview.style.display = 'block';
+            actions.style.display = 'block';
+            progBar.style.display = 'none';
+        };
+        reader.readAsText(file);
+    });
+
+    dlBtn.onclick = () => {
+        const blob = new Blob([cleanedData], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        a.click();
+    };
+
+    showBtn.onclick = () => {
+        preview.innerText = cleanedData;
+        preview.style.maxHeight = '300px';
+        showBtn.style.display = 'none';
+    };
+</script>
+
+</body>
+</html>
